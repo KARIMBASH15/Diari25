@@ -1,0 +1,2573 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دياري</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .modal-open {
+            overflow: hidden;
+        }
+
+        /* Dark mode styles */
+        @media (prefers-color-scheme: dark) {
+            .dark-mode {
+                background-color: #1a1a1a;
+                color: #ffffff;
+            }
+        }
+
+        /* Loading skeleton animation */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background: #4CAF50;
+            color: white;
+            z-index: 1000;
+            transform: translateY(100%);
+            animation: slideUp 0.3s forwards;
+        }
+
+        @keyframes slideUp {
+            to { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-red-800 text-white py-6 shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-4xl font-bold">ماركت دياري </h1>
+                    <div class="flex items-center gap-4">
+                        <button 
+                            onclick="toggleFavorites()"
+                            class="relative bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
+                        >
+                            <i data-lucide="heart" class="w-6 h-6"></i>
+                            <span id="favoriteBadge" class="absolute -top-2 -right-2 bg-red-500 text-white text-sm w-6 h-6 flex items-center justify-center rounded-full hidden">
+                                0
+                            </span>
+                        </button>
+                        <button
+                            onclick="toggleCart()"
+                            class="relative bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
+                        >
+                            <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+                            <span id="cartBadge" class="absolute -top-2 -right-2 bg-red-500 text-white text-sm w-6 h-6 flex items-center justify-center rounded-full hidden">
+                                0
+                            </span>
+                        </button>
+                        <button
+                            onclick="toggleDarkMode()"
+                            class="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
+                        >
+                            <i data-lucide="moon" class="w-6 h-6 dark:hidden"></i>
+                            <i data-lucide="sun" class="w-6 h-6 hidden dark:block"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex gap-4 items-center">
+                    <div class="flex-1 relative">
+                        <input 
+                            type="text" 
+                            id="searchInput"
+                            placeholder="ابحث عن منتج..."
+                            class="w-full px-4 py-2 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none"
+                            oninput="handleSearch()"
+                        />
+                        <div 
+                            id="searchResults"
+                            class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-h-96 overflow-y-auto hidden"
+                        ></div>
+                    </div>
+                    
+                    <select 
+                        id="categorySelect"
+                        class="bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 px-6 py-2 rounded-lg font-semibold text-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+                        onchange="handleCategoryChange(this.value)"
+                    >
+                        <option value="all">كل الأقسام</option>
+                        <option value="offers">عروض 🔥</option>
+                        <option value="vegetables">منتجات دياري 🍧</option>
+                        <option value="fruits">البان واجبان 🧀</option>
+                        <option value="snacks">معلبات 🥫</option>
+                        <option value="canned">مجمدات ❄️</option>
+                        <option value="market">ماركت 🏪</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sort options -->
+    <div class="container mx-auto px-4 py-4">
+        <div class="flex gap-4 items-center">
+            <label class="text-gray-700 dark:text-gray-300">ترتيب حسب:</label>
+            <select 
+                id="sortSelect"
+                class="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-2 rounded-lg"
+                onchange="handleSort(this.value)"
+            >
+                <option value="price-asc">السعر: من الأقل للأعلى</option>
+                <option value="price-desc">السعر: من الأعلى للأقل</option>
+                <option value="name-asc">الاسم: أ-ي</option>
+                <option value="name-desc">الاسم: ي-أ</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Offers Section -->
+    <div class="relative bg-gradient-to-b from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 py-8">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-yellow-800 dark:text-yellow-400 text-center mb-8">🔥 عروض اليوم 🔥</h2>
+            
+            <div class="relative">
+                <button 
+                    onclick="scrollOffers('right')"
+                    class="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 dark:bg-gray-800/80 p-2 rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                >
+                    <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                </button>
+
+                <div 
+                    id="offersSlider"
+                    class="flex overflow-x-auto gap-4 pb-4 scrollbar-hide scroll-smooth"
+                >
+                    <!-- Offers will be dynamically added here -->
+                </div>
+
+                <button 
+                    onclick="scrollOffers('left')"
+                    class="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 dark:bg-gray-800/80 p-2 rounded-full shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                >
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <main class="container mx-auto px-4 py-12">
+        <div id="productsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+            <!-- Products will be dynamically added here -->
+        </div>
+    </main>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-fadeIn">
+            <div class="relative">
+                <button 
+                    onclick="closeProductModal()"
+                    class="absolute top-4 left-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 z-10"
+                >
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+                
+                <div id="productModalContent" class="p-6">
+                    <!-- Product details will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Favorites Modal -->
+    <div id="favoritesModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 w-full md:max-w-2xl mx-auto my-4 md:my-8 p-4 md:p-8 relative rounded-none md:rounded-2xl min-h-[calc(100vh-2rem)] md:min-h-0 flex flex-col animate-fadeIn">
+            <button 
+                onclick="toggleFavorites()"
+                class="absolute top-4 left-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+            
+            <h2 class="text-2xl md:text-3xl font-bold mb-6">المنتجات المفضلة</h2>
+            
+            <div id="favoritesList" class="space-y-4 flex-1 overflow-y-auto">
+                <!-- Favorites will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart Modal -->
+    <div id="cartModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden backdrop-blur-sm overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 w-full md:max-w-2xl mx-auto my-4 md:my-8 p-4 md:p-8 relative rounded-none md:rounded-2xl min-h-[calc(100vh-2rem)] md:min-h-0 flex flex-col animate-fadeIn">
+            <button 
+                onclick="toggleCart()"
+                class="absolute top-4 left-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+            
+            <h2 class="text-2xl md:text-3xl font-bold mb-6">عربة التسوق</h2>
+            
+            <div class="flex-1 overflow-hidden flex flex-col">
+                <div id="cartItems" class="space-y-3 overflow-y-auto flex-1 pr-2">
+                    <!-- Cart items will be dynamically added here -->
+                </div>
+            </div>
+            
+            <div class="mt-6 border-t pt-4 bg-white dark:bg-gray-800">
+                <p class="text-xl md:text-2xl font-bold mb-4">
+                    الإجمالي: <span id="cartTotal" class="text-green-600 dark:text-green-400">0</span> جنيه
+                </p>
+                
+                <form id="checkoutForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="customerName" class="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                                الاسم
+                            </label>
+                            <input
+                                type="text"
+                                id="customerName"
+                                name="customerName"
+                                required
+                                class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                placeholder="أدخل اسمك"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label for="phoneNumber" class="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                                رقم الهاتف
+                            </label>
+                            <input
+                                type="tel"
+                                id="phoneNumber"
+                                name="phoneNumber"
+                                required
+                                class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                placeholder="أدخل رقم هاتفك"
+                            />
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="address" class="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                            عنوان التوصيل
+                        </label>
+                        <textarea
+                            id="address"
+                            name="address"
+                            required
+                            class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white h-24"
+                            placeholder="أدخل عنوان التوصيل"
+                        ></textarea>
+                    </div>
+                    
+                    <button
+                        type="submit"
+                        class="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2"
+                    >
+                        <span>إرسال الطلب على واتساب</span>
+                        <i data-lucide="send" class="w-5 h-5"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Data
+        const offers = [
+
+            {
+                id: 'offer2',
+                name: 'جبن تركي قديم',
+                pricePerKg: 280,
+                originalPrice: 320,
+                image: 'https://www.luluhypermarket.com/cdn-cgi/image/f=auto/medias/963861-01.jpg-1200Wx1200H?context=bWFzdGVyfGltYWdlc3wzNDQwNDF8aW1hZ2UvanBlZ3xhR05rTDJoall5ODVOVE0yTmpjNE1qTXlNRGswTHprMk16ZzJNUzB3TVM1cWNHZGZNVEl3TUZkNE1USXdNRWd8N2JmODQ2ZmNjNGQyMGMzNzY3NmQwNWU0M2E5YWM5YmFjZjY2ZmQ4NDM0MjVmZjRjMjJkOTc0YTlhODdiYjY2MQ',
+                category: 'fruits',
+                unit: 'كجم',
+                weights: [0.1, 0.25, 0.5, 1],
+                description: 'حتي نفاذ الكمية'
+            },
+            {
+                id: 'offer5',
+                name: 'جبن تركي وسط',
+                pricePerKg: 260,
+                originalPrice: 300,
+                image: 'https://www.luluhypermarket.com/cdn-cgi/image/f=auto/medias/963861-01.jpg-1200Wx1200H?context=bWFzdGVyfGltYWdlc3wzNDQwNDF8aW1hZ2UvanBlZ3xhR05rTDJoall5ODVOVE0yTmpjNE1qTXlNRGswTHprMk16ZzJNUzB3TVM1cWNHZGZNVEl3TUZkNE1USXdNRWd8N2JmODQ2ZmNjNGQyMGMzNzY3NmQwNWU0M2E5YWM5YmFjZjY2ZmQ4NDM0MjVmZjRjMjJkOTc0YTlhODdiYjY2MQ',
+                category: 'fruits',
+                unit: 'كجم',
+                weights: [0.1, 0.25, 0.5, 1],
+                description: '  حتي نفاذ الكمية'
+            },
+            {
+                id: 'offer3',
+                name: 'دبس تمر  ',
+                pricePerKg: 80,
+                originalPrice: 120,
+                image: 'https://static.webteb.net/images/content/tbl_articles_article_29209_4459b427313-e2ef-4256-8966-a03f63f5c7eb.jpg',
+                category: 'fruits',
+                unit: 'كجم',
+                weights: [0.25, 0.500, 0.75, 1],
+                description: '  حتي نفاذ الكمية'
+            },
+        ];
+
+        const products = [
+        {
+      "id": "canned709",
+      "name": "ستربس دجاج ",
+      "price": 135,
+      "image": "https://cdnprod.mafretailproxy.com/sys-master-root/hbc/h33/14773451522078/293835_main.jpg_480Wx480H",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned193",
+      "name": "قطع دجاج 12 قطعه",
+      "price": 270,
+      "image": "https://metro-website-images.s3.eu-west-1.amazonaws.com/products/DB00991.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned100",
+      "name": "مكس جبن 200 جرام الحمد",
+      "price": 50,
+      "image": "https://wuilt-assets-v2-dev.s3.amazonaws.com/cm4vwkt7z0i8401kl7f98fzop_1000148570.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned713",
+      "name": "ملوخية بسمة",
+      "price": 20,
+      "image": "https://3ard.com/cdn/shop/products/6223000370223-A_fcbeb40b-ea0c-4e5e-a5b6-f1857e72eef0_2048x.jpg?v=1654982154",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned477",
+      "name": "بانيه اطياب 1 ك",
+      "price": 120,
+      "image": "https://mixboxshop.com/wp-content/uploads/2024/09/a9b40420-8cbc-4b2d-a3eb-bb79aa7e368a.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned659",
+      "name": "بانيه عادي حلواني 1ك",
+      "price": 290,
+      "image": "https://abusamra.net/wp-content/uploads/2022/02/%D8%A8%D8%A7%D9%86%D9%8A%D9%87-%D8%B9%D8%A7%D8%AF%D9%8A-%D8%AD%D9%84%D9%88%D8%A7%D9%86%D9%8A-1%D9%83-.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned773",
+      "name": "سدق شرقي حلواني 350جرام",
+      "price": 140,
+      "image": "https://metro-website-images.s3.eu-west-1.amazonaws.com/products/DB00178.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned23",
+      "name": "وجبة 12 قطعه اطياب",
+      "price": 220,
+      "image": "https://metro-website-images.s3.eu-west-1.amazonaws.com/products/DB00991.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned492",
+      "name": "بيف برجر حلواني 1 ك",
+      "price": 235,
+      "image": "https://metro-website-images.s3.eu-west-1.amazonaws.com/products/DB01128.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned683",
+      "name": "موزاريلا الحمد 400 جرام",
+      "price": 60,
+      "image": "https://elnamliah.com/wp-content/uploads/2023/06/%D9%89%D9%84%D8%A7%D9%89%D9%84.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned691",
+      "name": "بسلة بالجزر بسمة",
+      "price": 30,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/8d4e6327d79fd11192282459179cc69e/6/2/6223000370049.1.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned354",
+      "name": "ناجتس 400جرام اطياب",
+      "price": 125,
+      "image": "https://elnamliah.com/wp-content/uploads/2023/06/%D8%A9%D9%86%D8%AA%D8%A7%D9%86.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned515",
+      "name": "كفتة اطياب  350 جم",
+      "price": 120,
+      "image": "https://ecart-eg.com/wp-content/uploads/2020/09/796-1.jpg",
+      "category": "canned",
+      "description": "."
+    },
+{
+      "id": "snacks1055",
+      "name": "لحم مفروم اطياب 350 جرام",
+      "price": 140,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREeiCBUI_--jSJ2ycYugujsij4ismikdoTAQ&s",
+      "category": "canned",
+      "description": "لحم مفروم اطياب 350 جرام"
+    },
+    {
+      "id": "snacks1056",
+      "name": "سمبوسك جبن  اطياب",
+      "price": 140,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTSXROZbLdBViWPjw_OVE0YktBxgTYqwtB7qg&s",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "snacks1057",
+      "name": "سمبوسك لحم اطياب",
+      "price": 140,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTEUuWKct0oQqQ54i-ML3ZiURec5QWuvda1gA&s",
+      "category": "canned",
+      "description": "20 قطعة"
+    },
+    {
+      "id": "canned199",
+      "name": "موزدريلا الحمد 200 جرام",
+      "price": 40,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtM74zExMI8eUFZX_RvxNuuE7lfVRIbaM4kA&s",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned948",
+      "name": "مفروم بقري حلواني 350جرام",
+      "price": 155,
+      "image": "https://th.bing.com/th/id/OIP.W1i0e1U3RmDYDBsqTcJZYAHaHa?rs=1&pid=ImgDetMain",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned350",
+      "name": "كفتة بقري حلواني 350جرام",
+      "price": 115,
+      "image": "https://alb2al.com/wp-content/uploads/2021/03/6221029040219.jpg",
+      "category": "canned",
+      "description": "."
+    },
+    {
+      "id": "canned311",
+      "name": "بانيه اطياب بارد 400جرام ",
+      "price": 130,
+      "image": "https://elnamliah.com/wp-content/uploads/2023/06/fgfgfs.jpg",
+      "category": "canned",
+      "description": "."
+    },
+{
+      "id": "market538",
+      "name": "مكرونة الملكة 400 جرام",
+      "price": 15,
+      "image": "https://cdn.mafrservices.com/sys-master-root/ha4/h1a/48236821381150/46863_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market791",
+      "name": "مكرونة اسباجتي الملكة 400 جرام",
+      "price": 15,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h6f/h77/48236820725790/16904_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market348",
+      "name": "شعرية الملكة 400 جرام ",
+      "price": 15,
+      "image": "https://cdn.mafrservices.com/sys-master-root/hae/h09/48236821872670/46903_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market387",
+      "name": "لسان عصفور الملكة 400جرام",
+      "price": 15,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h98/h60/51790349664286/46902_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market868",
+      "name": "مكرونة مرمارية الملكة 400جرام",
+      "price": 15,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h95/h14/48236821512222/46905_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market63",
+      "name": "صلصة هارفيست 800 جرام",
+      "price": 80,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h82/h35/27306108190750/373805_1.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market996",
+      "name": "صلصة وادي فوود 320جرام",
+      "price": 35,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h6e/h18/29790684774430/306287_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market935",
+      "name": "هارفيست 375جرام",
+      "price": 38,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h72/h91/26417213538334/375049_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market439",
+      "name": "توابل البصل البورد ",
+      "price": 20,
+      "image": "https://scontent.faly8-2.fna.fbcdn.net/v/t39.30808-6/480438780_572638255811936_5746529521497881813_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=833d8c&_nc_ohc=X8vWS4lCnKQQ7kNvgGgOiQc&_nc_oc=AdgDx8wzDKbv7WunPHLnfzkxCa_MmOGg6OPQviQdaoKHDJY9UkSFU2mc2HjBE9dcdjY&_nc_zt=23&_nc_ht=scontent.faly8-2.fna&_nc_gid=A2XKrKPjaML1PPjLkLmv6Mh&oh=00_AYD3wvwoAXQgY3WngiW4ImXZEiPKuMt-A_H5-yMMlrLj8w&oe=67C55143",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market124",
+      "name": "توابل الارز الكبسة",
+      "price": 20,
+      "image": "https://scontent.faly8-2.fna.fbcdn.net/v/t39.30808-6/481147463_572638289145266_5683766018022069019_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=833d8c&_nc_ohc=vLEJLsOwvdAQ7kNvgGcKMSZ&_nc_oc=AdgPlusS6jTUikvA9MkZUbpug3GgE_foi3v6rBPNup-ZTGuDty0v49MSjP6kBdBWdyw&_nc_zt=23&_nc_ht=scontent.faly8-2.fna&_nc_gid=ATITBC4xgt4Lc77tU7fa3Nn&oh=00_AYAwltHdJWvnbnHal3NC9MU574q0epYDWmmPW37h7zpm6A&oe=67C53D05",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market751",
+      "name": "توابل المحشي",
+      "price": 20,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/480199535_572638465811915_6387567028943389780_n.jpg?_nc_cat=102&ccb=1-7&_nc_sid=833d8c&_nc_ohc=8jY5ukvAjlcQ7kNvgF4HBtD&_nc_oc=AdiIjSz0nDMMmKv6f4ifri-bJD3dM9g_VqgHu_ig04SUAstNFI41Ug4YTt9jRCqAuKM&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=A8ireSV0FQjGifdxfxOqYA7&oh=00_AYD7wls2wDLxpa4osEZgKcHG6o4qqAhuc6CwlytwNFkqpw&oe=67C527A7",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market900",
+      "name": "تاج محل توابل جميع الاكلات",
+      "price": 20,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/480492942_572638522478576_4392681597565920991_n.jpg?_nc_cat=102&ccb=1-7&_nc_sid=833d8c&_nc_ohc=ASYTin3v3ksQ7kNvgG84r0x&_nc_oc=Adio5Rz1rqtURMSZ7xq16QXwPvLF19N_N3hYhMdc-bty6QBAanrH_sJdj5_ZeNmxOi0&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=AfHIpuWQLsuQqQ8ZnzLrzWY&oh=00_AYBZayRqO7ezmCMuylOiJbrEE44vkkl4lwh0LPeiTWbkZQ&oe=67C55F84",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market141",
+      "name": "خلطة الثوم البورد",
+      "price": 20,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/480961379_572638655811896_2090524150476450204_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=833d8c&_nc_ohc=uZiksyE-9w8Q7kNvgEsIdHp&_nc_oc=AdiPiaU2g_Z3buAphohgmPDVkQwEIe6N7DjWnSQZOkjcPYwEzd045u8Jh-ZXMWk8oFA&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=APxDhjNA-mgMsdXmZFn24A_&oh=00_AYAGeJMyGUj9r7QnAvBB1H5R_mFl3T5MteencrCUSiv7Ew&oe=67C55261",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market948",
+      "name": "مرق الدجاج",
+      "price": 20,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/480492212_572638585811903_2927021733983894504_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=833d8c&_nc_ohc=HTLxu4KR0zEQ7kNvgHim2RX&_nc_oc=Adjqkgstsc5-YB0gOJwC542NAtNeTNUI8PL3c78oWwrpHK5djJj_n9p4vPNoNill1Zc&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=Az24rANylYLm3LO1_XyYLfg&oh=00_AYA3ui_mJ0i_gK7HsnDoKvoDBi6jKBiDmYRo0Zwd1ppiMQ&oe=67C54774",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market427",
+      "name": "توابل بطعم الشطة و الليمون",
+      "price": 20,
+      "image": "https://scontent.faly8-2.fna.fbcdn.net/v/t39.30808-6/476453268_572638699145225_5316310323678658635_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=833d8c&_nc_ohc=70G-95QEtaEQ7kNvgGRFgJa&_nc_oc=AdikIea28X4QsNzCV5z1q2R8ylOEWgetc5egC2KPKsP7GCvoa5BwpNfbdcqsRFapkCk&_nc_zt=23&_nc_ht=scontent.faly8-2.fna&_nc_gid=AUC8eiP9ioAuFCjiLRxOxw9&oh=00_AYAOT-usVvUkYdiRnpgJ67FER2aBtrWApKs-VdcET6eKIg&oe=67C54EB1",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market932",
+      "name": "تتبيلة الدجاج ",
+      "price": 20,
+      "image": "https://scontent.faly8-2.fna.fbcdn.net/v/t39.30808-6/480825343_572638735811888_5592801256185938373_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=833d8c&_nc_ohc=B8YEE3U38QkQ7kNvgGYQ1j2&_nc_oc=AdhYcQEmP2mqyldCIyfSsk6Wiu2OLs5tqkX6DYJGA08sB-a2mVBAfDsF0NTD3MVtkbg&_nc_zt=23&_nc_ht=scontent.faly8-2.fna&_nc_gid=AQxeJ0umSyllW4DwQpI2boL&oh=00_AYAX7zNrdiRFijGr_2C7BQtrKEFejU9kkVAhtEbRKxXnbg&oe=67C554CF",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market865",
+      "name": "توابل الشرق الاقصي",
+      "price": 20,
+      "image": "https://scontent.faly8-2.fna.fbcdn.net/v/t39.30808-6/475924899_572638862478542_2901655240230319553_n.jpg?_nc_cat=111&ccb=1-7&_nc_sid=833d8c&_nc_ohc=KNV-py0o-jsQ7kNvgHX-B5s&_nc_oc=Adgu4hyj2fswTMBimA3pR8-0iTx1NLIK3H2hZJ7VjacqZDR2Q_xMTU_Qu-nfUMDEF-A&_nc_zt=23&_nc_ht=scontent.faly8-2.fna&_nc_gid=AMcXFk06_pPKHUh-8Zt0OI6&oh=00_AYCxGmcyFAtdo6iM1bjCJtj-G0ebJC8PnNMgOTW1_E9G9w&oe=67C54E87",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market591",
+      "name": "خلطة الكاري ",
+      "price": 20,
+      "image": "https://scontent.faly8-2.fna.fbcdn.net/v/t39.30808-6/480465151_572638835811878_6338731798247258217_n.jpg?_nc_cat=111&ccb=1-7&_nc_sid=833d8c&_nc_ohc=NQ0PmHkMcLMQ7kNvgG1lsbk&_nc_oc=AdhwbHqgKjLADSW_Qf4DEslcYZnSb7Qz1_CA4J_mVr_X5G4tvZ6F2dSC2izL5kPDMEw&_nc_zt=23&_nc_ht=scontent.faly8-2.fna&_nc_gid=ApNAW-i1eK3LUjlAr0VqZVp&oh=00_AYBduv4YKymLOXyui7Wke5-hyDw-zR7wGzoWmQHPRpso-w&oe=67C549F3",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market751",
+      "name": "توابل بطعم الكاتشب",
+      "price": 20,
+      "image": "https://scontent.faly8-2.fna.fbcdn.net/v/t39.30808-6/480553811_572638775811884_711930221772695105_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=833d8c&_nc_ohc=O4GebxafrgYQ7kNvgGotmCS&_nc_oc=Adj6SCdFSmovwt0GY__UiPUsDACPMSlB2Z-vOIFzwN2nFypm_TsIhtgQ77Nm66PPYCk&_nc_zt=23&_nc_ht=scontent.faly8-2.fna&_nc_gid=AFh3P21orEVTPOTciCzuIN8&oh=00_AYDD1meEre5ZCnt913k8ZjbHZdmbjImWHTFYZR8tVxxOHQ&oe=67C55B72",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market354",
+      "name": "زيت عافية 800 مل",
+      "price": 80,
+      "image": "https://scontent.faly8-2.fna.fbcdn.net/v/t39.30808-6/478996187_572639035811858_6244299632408659915_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=833d8c&_nc_ohc=aRob5hMdVWYQ7kNvgFuPyFi&_nc_oc=Adi54brbE1_74luZJ3elrWlu2FoMQgU6yNMURj77qydewO41U3_Rn2ynXkZHQGc-q8E&_nc_zt=23&_nc_ht=scontent.faly8-2.fna&_nc_gid=AT1oKc6vp9sCfJCm-x0jnnr&oh=00_AYB9aTgH4tKiYWXAjW9bnYQf9hkkG_TH-phxrscVlio7WA&oe=67C55500",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market605",
+      "name": "زيت حلوة 700 جرام",
+      "price": 60,
+      "image": "https://scontent.faly8-2.fna.fbcdn.net/v/t39.30808-6/480531713_572639065811855_4367462422512080548_n.jpg?_nc_cat=111&ccb=1-7&_nc_sid=833d8c&_nc_ohc=O3biPqz8NSUQ7kNvgGGDPne&_nc_oc=AdgxgvSt2_iYzuHbFgr9H3qMdKtCtaD7mWMxQcefGmwuiC15_QbavQDswfdPZtdNVqY&_nc_zt=23&_nc_ht=scontent.faly8-2.fna&_nc_gid=AWdyotuCMFDtLMkz7k0vnxE&oh=00_AYCWH1CKkvP6ByEPO0Sv4f8psrWFtYwvGBA0NqnudoUKdw&oe=67C55A9B",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market754",
+      "name": "زيت هلا عباد الشمس 800 مل",
+      "price": 70,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/480699053_572639109145184_8876588466365055679_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=833d8c&_nc_ohc=EA7VT7D4WcgQ7kNvgHOA3yo&_nc_oc=AdhTigQPh20BBzHirS2EEsMVm6byKdF9Q_goYfyPw6nua1Cynb0HidaocpjtmCMEQ9k&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=AF0NB7GqUpNDcWLlltt7sMf&oh=00_AYBtY1o7auHB6cukI0xLfnc2biBtoIDDfhrfzvKseuaNmA&oe=67C5513F",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market199",
+      "name": "وادي معجون طماطم 360 جرام",
+      "price": 35,
+      "image": "https://buymassry.com/images/detailed/11/tom2.png",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market152",
+      "name": "جبنة المراعي فيتا بطعم الشيدر 250 جرام",
+      "price": 22,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/8d4e6327d79fd11192282459179cc69e/6/2/6223007525404_250g-.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market467",
+      "name": "جبنة فيتا نبات الدهن 250 جرام",
+      "price": 22,
+      "image": "https://alkhan-mart.com/images/thumbs/0003701_-250-_260.jpeg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market161",
+      "name": "مزارع دينا معجون جبن مطبوخ بالشيدر – 275 جرام",
+      "price": 91,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT22_MwEYdtR7lyCu40xvqERsHb08GWkzJtoA&s",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market20",
+      "name": "مزارع دينا سبريد جبنة بالقشطة - 275 جرام",
+      "price": 95,
+      "image": "https://cdn.mafrservices.com/pim-content/EGY/media/product/638128/1725786606/638128_main.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market496",
+      "name": "المراعي كريمة خفق – 200 مل",
+      "price": 55,
+      "image": "https://mixboxshop.com/wp-content/uploads/2024/07/58a7803c-8778-42bb-90d8-7e5a209f5c37.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market414",
+      "name": "المراعي حليب كامل الدسم",
+      "price": 55,
+      "image": "https://m.media-amazon.com/images/I/71Bvh0sGVWL.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market917",
+      "name": "المراعي حليب خالي الدسم - 1 لتر",
+      "price": 55,
+      "image": "https://cdn.mafrservices.com/sys-master-root/ha3/h2d/30871336681502/307056_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market57",
+      "name": "لبن جهينة خالي الدسم - 1 لتر",
+      "price": 45,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h7d/h2e/11259563180062/12723_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market692",
+      "name": "جهينه لبن رايب - 1 لتر",
+      "price": 50,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h23/h96/26655832801310/12754_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market813",
+      "name": "مزارع دينا زبادي طبيعي 105 جم",
+      "price": 10,
+      "image": "https://www.luluhypermarket.com/cdn-cgi/image/f=auto/medias/1200Wx1200H-null?context=bWFzdGVyfGltYWdlc3w1NDg5ODd8aW1hZ2UvanBlZ3xhRGxtTDJoak1DOHhOall5TVRneU16UXlOalU1TUM4eE1qQXdWM2d4TWpBd1NGOXVkV3hzfDRjNzI2Njk4NzU4ZWE3OTBlNWZjOTViMWRmNGQxNjEyZDI4YWQ0N2MyZjk4YTc1NDRhMzFmZDYyYWEwOThkZjI",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market23",
+      "name": "زبادي مزرع دينا فواكه",
+      "price": 10,
+      "image": "https://www.luluhypermarket.com/cdn-cgi/image/f=auto/medias/1200Wx1200H-null?context=bWFzdGVyfGltYWdlc3w2MDc1Njd8aW1hZ2UvanBlZ3xhR0l4TDJnek1pOHhOall3TkRJMU9EUXpOVEV3TWk4eE1qQXdWM2d4TWpBd1NGOXVkV3hzfDQ2ZTE4Y2ZiNTk1MWVkMzVjYzNjZDZmYTI3NGMyMGM4NDk4MjkyNTliZGY2ZTVhNDY4ODlkYjdkYzY0MmVmZjU",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market991",
+      "name": "المراعي تريتس زبادي فراولة - 105 جم",
+      "price": 12,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h34/h95/30871351951390/468518_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market321",
+      "name": "المراعي تريتس زبادي توت - 105 جم",
+      "price": 12,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h6c/h1b/30871386783774/468521_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market6",
+      "name": "لبنة جهينه سادة - 250جرام",
+      "price": 100,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/8d4e6327d79fd11192282459179cc69e/6/2/6222014301476a500g.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market497",
+      "name": "لبنة جهينه سادة - 500 جرام",
+      "price": 175,
+      "image": "https://cdn.mafrservices.com/pim-content/EGY/media/product/648033/1738229403/648033_main.jpg?im=Resize=480",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market689",
+      "name": "كريمة خفق جهينة - 200 مل",
+      "price": 50,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/8d4e6327d79fd11192282459179cc69e/6/2/6223000350386-200ml.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market455",
+      "name": "قشطة ريماس",
+      "price": 25,
+      "image": "https://elnamliah.com/wp-content/uploads/2023/09/%D8%A8%D9%8A%D8%B5%D9%8A%D8%B3%D8%B3%D8%A6%D8%A1.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market158",
+      "name": "مزارع دينا زبادي طبيعي 75 جرام",
+      "price": 6,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/1ca275941aea0ae98b372dcb44b7c67a/6/2/6224000432072_105g_nn_1.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market366",
+      "name": "زبادى جهينة طبيعي 75 جرام",
+      "price": 6,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/1ca275941aea0ae98b372dcb44b7c67a/6/2/6222014300905.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market297",
+      "name": "حليب بخيره كامل الدسم من جهينة 500 مل",
+      "price": 22,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/1ca275941aea0ae98b372dcb44b7c67a/6/2/6223000350157-500ml.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market461",
+      "name": "مزارع دينا جبنة طري 450 جرام",
+      "price": 110,
+      "image": "https://www.osmanmarket.com/us/136/pidwebp600/8664/f133001030660431965119-1.webp",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market263",
+      "name": "عبور لاند جبن فيتا 250 جرام",
+      "price": 21,
+      "image": "https://th.bing.com/th/id/OIP.kJfGCIF07rqhFytFEWfUeAHaFj?rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market915",
+      "name": "مزارع دينا جبن 450 جرام",
+      "price": 110,
+      "image": "https://www.osmanmarket.com/us/136/pidwebp600/8663/f133001029713645880118-1.webp",
+      "category": "market",
+      "description": "."
+    },
+   
+
+    {
+      "id": "market660",
+      "name": "تمور لوز خمس نجوم - 700جم",
+      "price": 250,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/8d4e6327d79fd11192282459179cc69e/6/6/6624000398482a.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market99",
+      "name": "تمر مكس شيكولاتة",
+      "price": 110,
+      "image": "https://altahhandates.com/wp-content/uploads/2023/06/%D8%AA%D9%85%D8%B1-%D8%B4%D9%88%D9%83%D9%88%D9%84%D8%A7%D8%AA%D8%A9-%D9%85%D9%8A%D9%83%D8%B3-1.png",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market101",
+      "name": "تمور الطحان بالشكولاته و المكسرات",
+      "price": 110,
+      "image": "https://altahhandates.com/wp-content/uploads/2023/06/%D8%AA%D9%85%D8%B1-%D8%B4%D9%88%D9%83%D9%88%D9%84%D8%A7%D8%AA%D8%A9-%D9%85%D9%83%D8%B3%D8%B1%D8%A7%D8%AA-2.png",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market704",
+      "name": "تمر بالشيكولاتة البني لوز",
+      "price": 115,
+      "image": "https://altahhandates.com/wp-content/uploads/2023/07/%D8%AA%D9%85%D8%B1-%D8%B4%D9%88%D9%83%D9%88%D9%84%D8%A7%D8%AA%D8%A9-%D8%AF%D8%A7%D9%83%D9%86%D8%A9-%D9%85%D9%83%D8%B3%D8%B1%D8%A7%D8%AA-1.png",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market794",
+      "name": "شاي العروسة 100 جرام",
+      "price": 10,
+      "image": "https://salla-shop.com/wp-content/uploads/2024/03/6222002300030-250g.webp",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market505",
+      "name": "البوادي حلاوة سبريد بالشوكولاتة والبندق - 285جرام",
+      "price": 60,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h9b/h17/44951067263006/375048_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market858",
+      "name": "البوادي مربى فراولة - 650 جرام",
+      "price": 48,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h6c/hdb/52702578409502/625972_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market273",
+      "name": "البوادي مربى فراولة - 350 جرام",
+      "price": 32,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h6c/hdb/52702578409502/625972_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market705",
+      "name": "البوادي مربى فراولة - 190 جرام",
+      "price": 25,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h74/hcd/52702578835486/625970_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market771",
+      "name": "البوادي مربى تين - 650 جرام",
+      "price": 48,
+      "image": "https://cdn.mafrservices.com/sys-master-root/hb5/hc9/52702578966558/625969_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market138",
+      "name": "البوادي مربى تين - 190 جرام",
+      "price": 25,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h12/h74/52702579392542/625967_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market383",
+      "name": "البوادي حلاوة سبريد بالكراميل - 300 جرام",
+      "price": 60,
+      "image": "https://cdn.mafrservices.com/sys-master-root/hb5/he3/44951072636958/595916_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market167",
+      "name": "حلاوة البوادي بالشيكولاتة - 275جم",
+      "price": 55,
+      "image": "https://cdn.mafrservices.com/sys-master-root/hd6/hb1/44951065559070/161319_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market536",
+      "name": "طحينة البوادي - 125جم",
+      "price": 30,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h22/h59/44951066050590/107927_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market635",
+      "name": "بيتي عصير 235مل الطعم يختار عند الطلب ",
+      "price": 10,
+      "image": "https://images.deliveryhero.io/image/darkstores-eg/EGY_6223001875222.JPG?size=520",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market454",
+      "name": "حليب بالشوكولاتة من المراعى تريتس 200 مل",
+      "price": 13,
+      "image": "https://cdnprod.mafretailproxy.com/sys-master-root/h1d/hde/30871897440286/420789_main.jpg_480Wx480H",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market342",
+      "name": "مزرعة دينا لبن اطعم 250 مل",
+      "price": 20,
+      "image": "https://www.osmanmarket.com/us/136/pidwebp600/3428/f132837895084789358019-1.webp",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market850",
+      "name": "زبادو من جهينة 400 جرام",
+      "price": 30,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/1ca275941aea0ae98b372dcb44b7c67a/6/2/6223000352649-440ml.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market778",
+      "name": "تونه دولفين باردة باردة واحدة 185 جرام",
+      "price": 80,
+      "image": "https://www.osmanmarket.com/us/136/pidwebp600/1056/f132823101287521618048-1.webp",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market864",
+      "name": "فول مدمس سادة من هارفست 260 جرام",
+      "price": 18,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/1ca275941aea0ae98b372dcb44b7c67a/6/2/6223001060758.1.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market850",
+      "name": "البوادي حلاوة سادة - 130 جرام",
+      "price": 45,
+      "image": "https://cdn.mafrservices.com/sys-master-root/hc5/hae/44951065624606/107934_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market777",
+      "name": "البوادى حلاوة سادة - 900 جم",
+      "price": 120,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h06/hab/44951065755678/286702_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market287",
+      "name": "مربي حلواني رشيد الميزان ",
+      "price": 30,
+      "image": "https://www.elmezantrade.com/wp-content/uploads/2023/11/533.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market453",
+      "name": "اورينتال عصير قمر الدين 1 لتر",
+      "price": 40,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/1ca275941aea0ae98b372dcb44b7c67a/6/2/6222014336775.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market667",
+      "name": "اورينتال عصير كركديه 1 لتر ",
+      "price": 40,
+      "image": "https://www.filloffer.com/storage/resized_ahr0chm6ly9hc2hpywutynvja2v0lnmzlmv1lxdlc3qtmy5hbwf6b25hd3muy29tl3byb2r1y3rzl3nev0xqb0xkczhhewl1ngtru1dhqndaskplug1lr1uxudlzbuw1ztyuanbn.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market530",
+      "name": "اورينتال عصير خروب  1 لتر",
+      "price": 40,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/1ca275941aea0ae98b372dcb44b7c67a/2/0/2010302762429.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market39",
+      "name": "عصير جهينة عنب احمر 1 لتر ",
+      "price": 25,
+      "image": "https://th.bing.com/th/id/OIP.Jb-QSNExS90Vw31Ia_5Z3QHaHa?w=2048&h=2048&rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market882",
+      "name": "عصير جهينة مانجو 1 لتر",
+      "price": 25,
+      "image": "https://zeidanab.com/wp-content/uploads/2023/02/65015-600x600.png",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market874",
+      "name": "عصير جهينة  برتقال 1 لتر ",
+      "price": 25,
+      "image": "https://zeidanab.com/wp-content/uploads/2023/02/65019.png",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market910",
+      "name": "عصير جهينة 1 لتر كوكتيل",
+      "price": 25,
+      "image": "https://zeidanab.com/wp-content/uploads/2023/02/65016-600x600.png",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market339",
+      "name": "عصير جهينة جوافة 1 لتر",
+      "price": 25,
+      "image": "https://th.bing.com/th/id/OIP.jbJZOklCCCv-JLezNXQ03QAAAA?rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market950",
+      "name": "زبادو جهينة 220مل مانجو ",
+      "price": 15,
+      "image": "https://elnamliah.com/wp-content/uploads/2023/06/6223000352526.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market276",
+      "name": "زبادو جهينة 220مل خوخ",
+      "price": 15,
+      "image": "https://gourmetegypt.com/media/catalog/product/6/2/6223000352656.jpg?width=265&height=265&canvas=265,265&optimize=high&bg-color=255,255,255&fit=bounds",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market373",
+      "name": "زبادو جهينة 220مل فراولة ",
+      "price": 15,
+      "image": "https://th.bing.com/th/id/OIP.4jDvaHx7Y6UOqSLUuReZywHaHa?w=510&h=510&rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market630",
+      "name": "جهينة مكس موز ",
+      "price": 12,
+      "image": "https://th.bing.com/th/id/OIP.3JcBWu9cTBh_rgvhd54FIQHaHa?rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market88",
+      "name": "جهينة مكس شكولاتة",
+      "price": 12,
+      "image": "https://gourmetegypt.com/media/catalog/product/6/2/6222014310881.jpg?optimize=high&bg-color=255,255,255&fit=bounds&height=350&width=350&canvas=350:350",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market404",
+      "name": "جهينة مكس فراولة",
+      "price": 12,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/1ca275941aea0ae98b372dcb44b7c67a/6/2/6222014310898-.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market504",
+      "name": "جهينه زبادي يوناني توت 180جم",
+      "price": 40,
+      "image": "https://images.deliveryhero.io/image/darkstores-eg/EGY_6222014353116.JPG",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market384",
+      "name": "جهينه زبادي يوناني فراولة 180جم",
+      "price": 40,
+      "image": "https://gourmetegypt.com/media/catalog/product/6/2/6222014353109_kvbudgqpsyhg0z9s.jpg?width=265&height=265&canvas=265,265&optimize=high&bg-color=255,255,255&fit=bounds",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market400",
+      "name": "جهينه زبادي يوناني فانيلا 180جم",
+      "price": 40,
+      "image": "https://gourmetegypt.com/media/catalog/product/6/2/6222014352201.jpg?width=265&height=265&canvas=265,265&optimize=high&bg-color=255,255,255&fit=bounds",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market877",
+      "name": "جهينه زبادي يوناني 2% دسم 180جم",
+      "price": 40,
+      "image": "https://www.luluhypermarket.com/medias/1688109-02.jpg-1200Wx1200H?context=bWFzdGVyfGltYWdlc3wxNjE2NTV8aW1hZ2UvanBlZ3xoY2YvaDIyLzEyNzgyMDE2MTM1MTk4LzE2ODgxMDktMDIuanBnXzEyMDBXeDEyMDBIfDhkOGFiYjI3ZDM3NmM1Y2ZhZDYyOGZjYmE2NjllNzQ4ZWZlZDJjNjc3ZWQxMGIzMGU0NmRlZjk4NTJhZDEzOGQ",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market538",
+      "name": "عسل البوادي 680 جرام",
+      "price": 80,
+      "image": "https://th.bing.com/th/id/OIP.pP8nqWZezW2NmfR0bmmmqAHaKr?rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    
+    {
+      "id": "market777",
+      "name": "عسل البوادي 365 جرام",
+      "price": 50,
+      "image": "https://care4mall.online/wp-content/uploads/2022/03/cghcvgjhvb.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market26",
+      "name": "عسل البوادي 190 جرام",
+      "price": 30,
+      "image": "https://th.bing.com/th/id/OIP.CF2f7sYpuWbZ6gxeMPAHogHaHa?rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market882",
+      "name": "زبادو جهينة 220مل توت ",
+      "price": 15,
+      "image": "https://th.bing.com/th/id/OIP.oJyanvoKgiNG8TyEAW5-ZQHaHa?w=510&h=510&rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market253",
+      "name": "البوادي حلاوة بالبندق - 300 جرام",
+      "price": 70,
+      "image": "https://cdn.mafrservices.com/sys-master-root/ha5/hbb/44951065296926/161317_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market110",
+      "name": "جيلي كريز 70 جرام",
+      "price": 25,
+      "image": "https://th.bing.com/th/id/R.02ab0bb90587fa6757eb9d01d25d77f1?rik=g9iOFawMDRLABg&pid=ImgRaw&r=0",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market171",
+      "name": "جيلي اناناس دريم",
+      "price": 25,
+      "image": "https://cdnprod.mafretailproxy.com/sys-master-root/hb4/h2f/14596455727134/26531_main.jpg_480Wx480H",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market567",
+      "name": "عصير بيتي 235 جرام",
+      "price": 10,
+      "image": "https://th.bing.com/th/id/OIP.9bqQ9g5HFCgI_y0zTe3AnAHaHa?rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market269",
+      "name": "عصير بيتي 235 مل برتقال",
+      "price": 10,
+      "image": "https://th.bing.com/th/id/OIP.J4y19XebLUS3XPXC9UWn6QHaHa?w=1000&h=1000&rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market830",
+      "name": "عصير بيتي جوافة 235 مل",
+      "price": 10,
+      "image": "https://th.bing.com/th/id/OIP.6y9QTj5kQVqC5Vg94EuDawHaHa?rs=1&pid=ImgDetMain",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market997",
+      "name": "ريتش بيك توست بالردة - 500 جرام",
+      "price": 42.5,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h52/h35/48146399494174/38152_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market998",
+      "name": "ريتش بيك توست أبيض - 500 جم",
+      "price": 42.5,
+      "image": "https://cdn.mafrservices.com/sys-master-root/hfb/h34/48146399461406/38151_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market999",
+      "name": "ريتش بيك خبز ",
+      "price": 50,
+      "image": "https://cdn.mafrservices.com/pim-content/EGY/media/product/642318/1730037603/642318_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "ريتش بيك خبز تورتيلا بالدقيق الكامل- 450 جم - 5 قطع\n"
+    },
+    {
+      "id": "market1000",
+      "name": " توست الحبوب",
+      "price": 55,
+      "image": "https://cdn.mafrservices.com/sys-master-root/hbb/h49/48146400051230/275362_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "ريتش بيك توست الحبوب المتنوعة - 500 جم\n"
+    },
+    {
+      "id": "market1001",
+      "name": "توست بحبة البركة",
+      "price": 50,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h8f/hf2/13102603829278/53863_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "ريتش بيك توست ناشف بحبة البركة - 160 جم\n"
+    },
+    {
+      "id": "market1002",
+      "name": "توست بالقمح الكامل ",
+      "price": 65,
+      "image": "https://cdn.mafrservices.com/sys-master-root/ha3/hd5/15843286646814/361980_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "ريتش بيك توست بالقمح الكامل الجاف - 390 جم\n"
+    },
+    {
+      "id": "market1003",
+      "name": "جبنه رودس شيدر 1/4 كيلو",
+      "price": 22,
+      "image": "https://marktaboabdo.online/wp-content/uploads/2024/12/WhatsApp-Image-2024-10-13-at-9-scaled-e1728805750302.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1004",
+      "name": "جبنة رودس رومي 1/4 ",
+      "price": 22,
+      "image": "https://gomla-eg.com/image/cache/catalog/products/88.png-550x550.png.webp",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1005",
+      "name": "رودس فيتا سادة",
+      "price": 22,
+      "image": "https://www.osmanmarket.com/us/136/pidwebp600/3601/f132831661219071207019-1.webp",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1006",
+      "name": "كسكسي دياري ",
+      "price": 100,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSyckdDYTVayLiclOYfOSMRt1XFjiz1wVFxjw&s",
+      "category": "market",
+      "description": "طعم حكاية"
+    },
+    {
+      "id": "market1007",
+      "name": "دقيق حلو الشام الفاخر",
+      "price": 25,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS_zkSXtFa5efOnS0rqWCTYnjBMjH-sqrN2Jg&s",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1008",
+      "name": "ارز النجوم 1ك",
+      "price": 30,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRm3mROVJ5bvpA4URMsLyR2BdX2qmih7VU0IA&s",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1009",
+      "name": "صلصة هارفست اكياس",
+      "price": 5,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTESeawryFJW3fRNdTQ7E1nvPluKOhfslpr3A&s",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1010",
+      "name": "بخيره 1 لتر ",
+      "price": 40,
+      "image": "https://ecart-eg.com/wp-content/uploads/2020/04/11-2-300x300.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1011",
+      "name": "بخيره 1/2 لتر",
+      "price": 20,
+      "image": "https://m.media-amazon.com/images/I/31X5+1i38cL._BO30,255,255,255_UF900,850_SR1910,1000,0,C_ZA15,500,900,420,420,AmazonEmber,50,4,0,0_PIRIOTHREEANDHALFr-medium,BottomLeft,30,-20_QL100_.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1012",
+      "name": "وادي فوود زيتون أخضر شرائح - 650جم",
+      "price": 130,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h29/hc6/14786090074142/17378_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1013",
+      "name": "وادي فوود زيتون أخضر - 1كجم",
+      "price": 120,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h5a/h74/14786158100510/34495_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1014",
+      "name": "وادي فود مخلل مشكل - 600جم",
+      "price": 35,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h63/ha4/14786176909342/43244_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "وادي فود مخلل مشكل - 600جم\n"
+    },
+    {
+      "id": "market1015",
+      "name": "وادي فود زيتون أسود طبيعي - 1 كجم",
+      "price": 130,
+      "image": "https://cdn.mafrservices.com/sys-master-root/hfe/h85/14786158657566/34494_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1016",
+      "name": "وادي فوود زيتون أخضر طبيعي - 650 جرام",
+      "price": 100,
+      "image": "https://cdn.mafrservices.com/sys-master-root/h4c/h9e/50042145734686/17377_main.jpg?im=Resize=400",
+      "category": "market",
+      "description": "وادي فوود زيتون أخضر طبيعي - 650 جرام\n"
+    },
+    {
+      "id": "market1017",
+      "name": "امتنان بن فاتح ",
+      "price": 75,
+      "image": "https://imtenan.com/Content/Products/F070932.JPG",
+      "category": "market",
+      "description": "100 جرام"
+    },
+    {
+      "id": "market1018",
+      "name": "امتنان بن فاتح محوج",
+      "price": 85,
+      "image": "https://imtenan.com/Content/Products/F070935.JPG",
+      "category": "market",
+      "description": "100جرام"
+    },
+    {
+      "id": "market1019",
+      "name": "امتنان وسط محوج",
+      "price": 85,
+      "image": "https://imtenan.com/Content/Products/F070936.JPG",
+      "category": "market",
+      "description": "100 جرام"
+    },
+    {
+      "id": "market1020",
+      "name": "حليب بودرة كامل الدسم ",
+      "price": 620,
+      "image": "https://m.media-amazon.com/images/I/61nQcH3tIuL._AC_SX679_.jpg",
+      "category": "market",
+      "description": "حليب بودرة كامل الدسم من افانتي، كيس 1.500 كيلوجرام\n"
+    },
+    {
+      "id": "market1021",
+      "name": "خل وادي",
+      "price": 15,
+      "image": "https://abusamra.net/wp-content/uploads/2020/05/5082.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1022",
+      "name": "حلواني مربي تين",
+      "price": 70,
+      "image": "https://m.media-amazon.com/images/I/71exgoL+wLL.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1023",
+      "name": "حلواني مربي فراولة ",
+      "price": 70,
+      "image": "https://abusamra.net/wp-content/uploads/2020/06/%D9%85%D8%B1%D8%A8%D9%8A-%D8%AD%D9%84%D9%88%D8%A7%D9%86%D9%8A.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1024",
+      "name": "حلواني مربي مشمش",
+      "price": 70,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/8d4e6327d79fd11192282459179cc69e/6/2/6221029610122_-_750g.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1025",
+      "name": "بيض احمر",
+      "price": 5.5,
+      "image": "https://vid.alarabiya.net/images/2019/01/14/f7411339-c7c2-42a7-87f6-522e0e8ecae9/f7411339-c7c2-42a7-87f6-522e0e8ecae9.png?crop=1:1&width=1000",
+      "category": "market",
+      "description": "يحتسب بعدد الضغطات "
+    },
+    {
+      "id": "market1026",
+      "name": "بيض ابيض عادي",
+      "price": 5.5,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQUip81PW_X5g-Q4IZ1JZi_WKYSoevVDC64CA&s",
+      "category": "market",
+      "description": "يحتسب بعدد الضغطات "
+    },
+    {
+      "id": "market1027",
+      "name": "بي بلدي",
+      "price": 6,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQa63ZibfTxncY-aQWAVN0CfChK9KifaF3zHw&s",
+      "category": "market",
+      "description": "يحتسب بعدد الضغطات "
+    },
+    {
+      "id": "market1028",
+      "name": "هارفست بليلة",
+      "price": 40,
+      "image": "https://cdn.mafrservices.com/pim-content/EGY/media/product/643387/1739797274/643387_main.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1029",
+      "name": "بيج كولا",
+      "price": 10,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQN9a_MrwFkptMEuwxaH38U2L1jzUkhUbDDrQ&s",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1030",
+      "name": "فولت مشروب الطاقة",
+      "price": 15,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQizAAsa6z-nKtblifiiBrs8LwlmX3NwO6cOw&s",
+      "category": "market",
+      "description": "."
+    },
+   
+    {
+      "id": "market1034",
+      "name": "مزارع دينا سبريد جبنة الشيدر - 500جرام\t",
+      "price": 180,
+      "image": "https://images-na.ssl-images-amazon.com/images/I/41-2t6tyoGL._SL500_._AC_SL500_.jpg",
+      "category": "market",
+      "description": "مزارع دينا سبريد جبنة الشيدر - 500جرام\t"
+    },
+    {
+      "id": "market1035",
+      "name": "مزارع دينا جبنة مطبوخة بالقشطة- 500جرام\t",
+      "price": 150,
+      "image": "https://3ard.com/cdn/shop/files/14-6224000432225.jpg?v=1732944462",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1036",
+      "name": "طحينة البوادي 450 جرام",
+      "price": 80,
+      "image": "https://m.media-amazon.com/images/I/6178v1kaJVL.jpg",
+      "category": "market",
+      "description": "طحينة البوادي 450 جرام"
+    },
+    {
+      "id": "market1037",
+      "name": "طحينة البوادي 235 جرام",
+      "price": 45,
+      "image": "https://www.osmanmarket.com/us/136/pidwebp200/371/f132820578422325130048-1.png",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1038",
+      "name": "مزارع دينا حليب بالشكولاتة ",
+      "price": 23,
+      "image": "https://www.qebox.app/qebox/wp-content/uploads/2024/11/%D9%85%D8%B2%D8%A7%D8%B1%D8%B9-%D8%AF%D9%8A%D9%86%D8%A7-%D8%AD%D9%84%D9%8A%D8%A8-%D8%A8%D8%A7%D9%84%D8%B4%D9%83%D9%88%D9%84%D8%A7%D8%AA%D9%87-250-%D9%85%D9%84-150x267.jpg",
+      "category": "market",
+      "description": "مزارع دينا حليب بالشكولاتة "
+    },
+    {
+      "id": "market1039",
+      "name": "مزارع دينا مشروب بالمانجو",
+      "price": 23,
+      "image": "https://www.luluhypermarket.com/cdn-cgi/image/f=auto/medias/1705470-01.jpg-1200Wx1200H?context=bWFzdGVyfGltYWdlc3wxNDQwMjZ8aW1hZ2UvanBlZ3xhR016TDJnek9TOHhNamd4TURrNU9EWXhNVGs1T0M4eE56QTFORGN3TFRBeExtcHdaMTh4TWpBd1YzZ3hNakF3U0F8MDgwYzg1YjY4M2Y4ZGVhMGUzY2UyNWViODBmNDVmM2YwMDY3ZWU2MGU0ZWI0ZWJiNTdmZWRhNzhkYTRkYWU2YQ",
+      "category": "market",
+      "description": "مزارع دينا مشروب بالمانجو"
+    },
+    {
+      "id": "market1040",
+      "name": "مزارع دينا بطعم الرمان",
+      "price": 23,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSOYQWN6qYWiPwMDNCJJM8iJJcZMgPdb4kNCw&s",
+      "category": "market",
+      "description": "مزارع دينا بطعم الرمان"
+    },
+    {
+      "id": "market1041",
+      "name": "مزارع دينا بطعم البرتقال",
+      "price": 23,
+      "image": "https://alkhan-mart.com/images/thumbs/0003969_-250_260.png",
+      "category": "market",
+      "description": "مزارع دينا بطعم البرتقال"
+    },
+    {
+      "id": "market1042",
+      "name": "كيس طحينة البوادي",
+      "price": 5,
+      "image": "https://www.luluhypermarket.com/cdn-cgi/image/f=auto/medias/1095711-01.jpg-1200Wx1200H?context=bWFzdGVyfGltYWdlc3w2Njg1ODZ8aW1hZ2UvanBlZ3xhRFUzTDJnellpOHhNalF3T1RBeE56YzJNVGd5TWk4eE1EazFOekV4TFRBeExtcHdaMTh4TWpBd1YzZ3hNakF3U0F8NjA0MTkzYmU1MTQyMGZmMWM3NzU2Y2M0NTAyZGVjOGE5YmE0MjBiZDg0ZWE0ZDU5ZGI3NmU1YzU5NDAwOWRkMw",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1043",
+      "name": "جبنة مثلثات مزارع دينا",
+      "price": 38,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSUhCjlko_Zocx_PJm8WjRSf1DqAn8cxmIyQw&s",
+      "category": "market",
+      "description": "مزارع دينا جبنة مثلثات كامل الدسم كريمي – 8 قطع\n"
+    },
+    {
+      "id": "market1044",
+      "name": "تونة دولفين 170 جرام",
+      "price": 50,
+      "image": "https://m.media-amazon.com/images/I/714EK3YHBgL.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1045",
+      "name": "تونة دولفين 140جرام",
+      "price": 38,
+      "image": "https://m.media-amazon.com/images/I/714EK3YHBgL.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1046",
+      "name": "تونة دولفين 200جرام",
+      "price": 65,
+      "image": "https://m.media-amazon.com/images/I/714EK3YHBgL.jpg",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "snacks1062",
+      "name": "تمر رطب سكري من 5 نجوم",
+      "price": 75,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/479826884_572637179145377_2407319017177161816_n.jpg?stp=dst-jpg_s600x600_tt6&_nc_cat=103&ccb=1-7&_nc_sid=833d8c&_nc_ohc=cazVEtuKJskQ7kNvgFXqcqW&_nc_oc=AdhfRjr8hSap9np2hXjDG5wujUl8V3Vo-sjDUBInX2lm7NLnpgfhhBxMYDRorrzcTPs&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=Az8AhrCri_xJHS9TlgeqG0b&oh=00_AYBLk_D1F4UehONYkT_kAPG_iSyfjITaEf7sbLkYnygSnQ&oe=67C6A32E",
+      "category": "market",
+      "description": "تمر رطب سكري من 5 نجوم"
+    },
+    {
+      "id": "snacks1063",
+      "name": "تمر رطب سكري من 5 نجوم",
+      "price": 90,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/480251377_572637705811991_9186631362136911155_n.jpg?_nc_cat=102&ccb=1-7&_nc_sid=833d8c&_nc_ohc=jIpznx6fKMoQ7kNvgFAN82A&_nc_oc=Adg5NyVczbTfY2oRw5beu9qa2Zk9Bhvm7XhpfYonaBilh9xJxuSq0_woi6hdZuf85K4&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=APBQcxFT1N_jA1SCbRObqLW&oh=00_AYCLH1vWjx_Pv4tKB5R7FwRo_lh99jkJgm8fLuSQ9T3jEg&oe=67C6B033",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "snacks1064",
+      "name": "تمر عجوي المدينة من 5 نجوم",
+      "price": 300,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/480585369_572637855811976_4993520086380052963_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=833d8c&_nc_ohc=tyCniimncr8Q7kNvgFaWWfO&_nc_oc=AdgufFwNC4OxlCgOsRQHNLsPvzOTJGW7WJXlKs-2dU-G7do4cRfgYx5e0IWDbAYa9ks&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=ApjCsZmz89I0NzkY1tGtBtL&oh=00_AYAoy0XTahzjozEmivYIlM-9PzemYUvmN5Tb9KtDUaLtFA&oe=67C693F6",
+      "category": "market",
+      "description": "سعودي"
+    },
+    {
+      "id": "snacks1065",
+      "name": "تمر دجلة 1ك",
+      "price": 150,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/481225030_572638029145292_8022645921819967668_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=833d8c&_nc_ohc=8X4dm9IkWA8Q7kNvgEe1j7K&_nc_oc=AdjODEu_KSk1_W9NPUKiquccmEVuoQksXoVHqak5tkZZhcX39zYiITSGoiI-F_Vbc9o&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=AXqH-qutMKjHIebxML6UenW&oh=00_AYBHBpnCCEth513MxxP6AsbZNrhp3P0QxCPs9jvgjpB9qQ&oe=67C69B55",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "snacks1066",
+      "name": "تمور القصيم 1ك",
+      "price": 150,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/480550484_572638065811955_9177643825412126755_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=833d8c&_nc_ohc=cSOUBALYFD8Q7kNvgE6aZui&_nc_oc=Adh43w7HPf_KQzk9B3DVVoqvROelB7J3OOGs_x_fyOQbuo4LxNRWSOj8GDuhfE6yumo&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=A8OYUAy4U6OHdtzsclU3VI0&oh=00_AYAcv6L8NQce4UIGkklcAcvv2d-mNDzjdr9HRqhoVs_kPg&oe=67C68173",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "snacks1067",
+      "name": "تمور دجلة نور 1ك",
+      "price": 150,
+      "image": "https://scontent.faly8-1.fna.fbcdn.net/v/t39.30808-6/480330788_572638155811946_6606662939135163624_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=833d8c&_nc_ohc=J6k32PKdJ3oQ7kNvgEPmN_D&_nc_oc=Adj2uOUCj24K79Hg9rx5cDn0ZzYyjljmmfTPPNCjKliXI99s4LtYq84X0SyTy4sjiVY&_nc_zt=23&_nc_ht=scontent.faly8-1.fna&_nc_gid=AC8eJslhwBABxsbD29e1Ysu&oh=00_AYALeXUC5glOxFfoYPcvx8uqi8elM0fc31qhdllMtZR2XQ&oe=67C68525",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "market1047",
+      "name": "تمر سايب  1ك ",
+      "price": 50,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMK8KlrBvE_rLZU0iDVHwnkhUAEMBmvT8wzw&s",
+      "category": "market",
+      "description": "."
+    },
+    {
+      "id": "fruits1048",
+      "name": "جبنة تركي وسط ",
+     pricePerKg: 260,
+      "image": "https://men-masr.com/cdn/shop/files/roumi.png?v=1700251085",
+ "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+      "category": "fruits",
+      "description": "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+    {
+      "id": "fruits1049",
+      "name": "جبنة تركي قديم",
+     pricePerKg: 280,
+      "image": "https://www.luluhypermarket.com/cdn-cgi/image/f=auto/medias/963861-01.jpg-1200Wx1200H?context=bWFzdGVyfGltYWdlc3wzNDQwNDF8aW1hZ2UvanBlZ3xhR05rTDJoall5ODVOVE0yTmpjNE1qTXlNRGswTHprMk16ZzJNUzB3TVM1cWNHZGZNVEl3TUZkNE1USXdNRWd8N2JmODQ2ZmNjNGQyMGMzNzY3NmQwNWU0M2E5YWM5YmFjZjY2ZmQ4NDM0MjVmZjRjMjJkOTc0YTlhODdiYjY2MQ",
+ "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+      "category": "fruits",
+      "description": "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+    {
+      "id": "fruits1050",
+      "name": "جبن كيري",
+     pricePerKg: 180,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFqiEG7Rs4IKbz3p0mrmAPGKFp492bqreB2A&s",
+ "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+      "category": "fruits",
+      "description": "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+    {
+      "id": "fruits1051",
+      "name": "جبن تلاجة ",
+     pricePerKg: 160,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/8d4e6327d79fd11192282459179cc69e/2/3/239873400006.png",
+ "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+      "category": "fruits",
+      "description": "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+    {
+      "id": "fruits1052",
+      "name": "جبنة براميلي",
+       pricePerKg: 160,
+      "image": "https://mcprod.hyperone.com.eg/media/catalog/product/cache/8d4e6327d79fd11192282459179cc69e/2/3/2398038000009_1.jpg",
+ "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+      "category": "fruits",
+      "description": "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+   
+ {
+      "id": "fruits1053",
+      "name": "جبنة قريش ",
+                   pricePerKg: 90,
+      "image": "https://men-masr.com/cdn/shop/files/WhatsAppImage2023-11-11at11.45.39AM_1.jpg?v=1699695988&width=600",
+      "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+      "category": "fruits",
+      "description": "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+    {
+      "id": "market1031",
+      "name": "دبس تمر",
+     pricePerKg: 80,
+      "image": "https://static.webteb.net/images/content/tbl_articles_article_29209_4459b427313-e2ef-4256-8966-a03f63f5c7eb.jpg",
+       "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+ "category": "market",
+      "description": "."
+    },
+    {
+      "id": "fruits1054",
+      "name": "جبن فاهيتي",
+       pricePerKg: 180,
+      "image": "https://img-global.cpcdn.com/recipes/fab4e2d1407db77b/680x482cq70/%D8%A7%D9%84%D8%B5%D9%88%D8%B1%D8%A9-%D8%A7%D9%84%D8%B1%D8%A6%D9%8A%D8%B3%D9%8A%D8%A9-%D9%84%D9%88%D8%B5%D9%81%D8%A9%D9%85%D8%B4%D9%83%D9%84-%D8%AC%D8%A8%D9%86-%D8%A8%D8%A7%D9%84%D9%84%D8%A7%D9%86%D8%B4%D9%88%D9%86-%D9%88%D8%A7%D9%84%D8%B2%D9%8A%D8%AA%D9%88%D9%86.jpg",
+ "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+      "category": "fruits",
+      "description": "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+    {
+      "id": "fruits1058",
+      "name": "لانشون بقر سادة",
+     pricePerKg: 300,
+      "image": "https://www.luluhypermarket.com/cdn-cgi/image/f=auto/medias/1115504-01.jpg-1200Wx1200H?context=bWFzdGVyfGltYWdlc3w0NjMxNjZ8aW1hZ2UvanBlZ3xhRGN5TDJoaE9TOHhNemMwTWprNU9Ua3lPRGcyTWk4eE1URTFOVEEwTFRBeExtcHdaMTh4TWpBd1YzZ3hNakF3U0F8ZDEyNTRkN2M0N2UxZGI5MTRhYWVmZGJiN2JkNmI2ODI1NTViOGQ1YzRlMmI1ZTg2MTRiMjRkNzhkOTNiNjUzMw",
+      "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+ "category": "fruits",
+      "description": "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+    {
+      "id": "fruits1059",
+      "name": "لانشون دجاج ",
+     pricePerKg: 300,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTmLR8wRXsVdklPyMbaQh2pKHeRYxljIIedQ0lVzpcdCduane6uSrJbYxM3xq1MycReWmw&usqp=CAU",
+      "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+ "category": "fruits",
+      "description":  "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+    {
+      "id": "fruits1060",
+      "name": "لانشون حلواني",
+     pricePerKg: 300,
+      "image": "https://cdn.mafrservices.com/pim-content/EGY/media/product/318617/1742816404/318617_main.jpg?im=Resize=480",
+       "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+"category": "fruits",
+      "description":  "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+    {
+      "id": "fruits1061",
+      "name": "بيفي",
+     pricePerKg: 250,
+      "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRj03G5lV2f9CHvZH3T_oBxNn2kQvpNMOjLIQRxy0q6KbtlbbrCx_LHyQceE7_tNBvBK8E&usqp=CAU",
+      "unit": "كجم",
+      "weights": [0.15, 0.25, 0.5, 1],
+ "category": "fruits",
+      "description": "الاختيار من اول 150 جرام  حتي كيلو بالقائمة "
+    },
+
+
+
+
+
+
+
+
+   
+        ];
+
+        let cart = [];
+        let favorites = [];
+        let currentCategory = 'all';
+        let currentSort = 'price-asc';
+
+        // Handle category change
+        function handleCategoryChange(category) {
+            currentCategory = category || 'all';
+            displayProducts(currentCategory);
+        }
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            const root = document.documentElement;
+            const isDark = root.classList.toggle('dark');
+            localStorage.setItem('darkMode', isDark ? 'dark' : 'light');
+            
+            const moonIcon = document.querySelector('[data-lucide="moon"]');
+            const sunIcon = document.querySelector('[data-lucide="sun"]');
+            if (moonIcon && sunIcon) {
+                moonIcon.style.display = isDark ? 'none' : 'block';
+                sunIcon.style.display = isDark ? 'block' : 'none';
+            }
+        }
+
+        // Initialize dark mode
+        function initializeDarkMode() {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const storedTheme = localStorage.getItem('darkMode');
+            
+            if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+                const moonIcon = document.querySelector('[data-lucide="moon"]');
+                const sunIcon = document.querySelector('[data-lucide="sun"]');
+                if (moonIcon) moonIcon.style.display = 'none';
+                if (sunIcon) sunIcon.style.display = 'block';
+            }
+        }
+
+        // Load data from localStorage
+        function loadFromLocalStorage() {
+            const savedCart = localStorage.getItem('cart');
+            if (savedCart) {
+                cart = JSON.parse(savedCart);
+                updateCart();
+            }
+
+            const savedFavorites = localStorage.getItem('favorites');
+            if (savedFavorites) {
+                favorites = JSON.parse(savedFavorites);
+                updateFavorites();
+            }
+        }
+
+        // Save data to localStorage
+        function saveToLocalStorage() {
+            localStorage.setItem('cart', JSON.stringify(cart));
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+        }
+
+        // Sort products
+        function handleSort(method) {
+            currentSort = method;
+            displayProducts(currentCategory);
+        }
+
+        function sortProducts(products, method) {
+            const sorted = [...products];
+            
+            switch(method) {
+                case 'price-asc':
+                    sorted.sort((a, b) => (a.price || a.pricePerKg || a.pricePerLiter) - (b.price || b.pricePerKg || b.pricePerLiter));
+                    break;
+                case 'price-desc':
+                    sorted.sort((a, b) => (b.price || b.pricePerKg || b.pricePerLiter) - (a.price || a.pricePerKg || a.pricePerLiter));
+                    break;
+                case 'name-asc':
+                    sorted.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'name-desc':
+                    sorted.sort((a, b) => b.name.localeCompare(a.name));
+                    break;
+            }
+            
+            return sorted;
+        }
+
+        // Search functionality
+        function handleSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            const query = searchInput.value.trim().toLowerCase();
+
+            if (query === '') {
+                searchResults.classList.add('hidden');
+                return;
+            }
+
+            const allProducts = [...products, ...offers];
+            const results = allProducts.filter(product => 
+                product.name.toLowerCase().includes(query) ||
+                product.description.toLowerCase().includes(query)
+            );
+
+            if (results.length === 0) {
+                searchResults.innerHTML = `
+                    <div class="p-4 text-gray-500 text-center">
+                        لا توجد نتائج
+                    </div>
+                `;
+            } else {
+                searchResults.innerHTML = results.map(product => `
+                    <div 
+                        class="p-4 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-4"
+                        onclick="showProductModal('${product.id}', ${offers.some(o => o.id === product.id)})"
+                    >
+                        <img 
+                            src="${product.image}" 
+                            alt="${product.name}" 
+                            class="w-16 h-16 object-cover rounded"
+                        />
+                        <div>
+                            <h4 class="font-bold">${product.name}</h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">${product.description}</p>
+                            <p class="text-green-600 dark:text-green-400 font-semibold">
+                                ${product.price || product.pricePerKg || product.pricePerLiter} جنيه${product.unit ? `/${product.unit}` : ''}
+                            </p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            searchResults.classList.remove('hidden');
+        }
+
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+            const searchResults = document.getElementById('searchResults');
+            const searchInput = document.getElementById('searchInput');
+            
+            if (!searchResults.contains(e.target) && e.target !== searchInput) {
+                searchResults.classList.add('hidden');
+            }
+        });
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Lazy load images
+        function lazyLoadImages() {
+            const images = document.querySelectorAll('img:not([loading])');
+            images.forEach(img => {
+                img.setAttribute('loading', 'lazy');
+            });
+        }
+
+        // Display products
+        function displayProducts(category = 'all') {
+            const productsGrid = document.getElementById('productsGrid');
+            if (!productsGrid) return;
+
+            const filteredProducts = category === 'all' 
+                ? products 
+                : category === 'offers'
+                ? offers
+                : products.filter(product => product.category === category);
+
+            if (filteredProducts.length === 0) {
+                productsGrid.innerHTML = `
+                    <div class="col-span-full text-center py-8 text-gray-500">
+                        <i data-lucide="package" class="w-16 h-16 mx-auto mb-4"></i>
+                        <p class="text-lg">لا توجد منتجات في هذا القسم</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            const sortedProducts = sortProducts(filteredProducts, currentSort);
+
+            productsGrid.innerHTML = sortedProducts.map(product => {
+                const hasWeight = product.weights && product.unit;
+                const price = product.price || product.pricePerKg || product.pricePerLiter;
+                const isOffer = offers.some(o => o.id === product.id);
+
+                return `
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 transform hover:scale-105 transition-transform duration-300">
+                        <div class="relative">
+                            ${isOffer ? `
+                                <span class="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                                    خصم ${Math.round((1 - price/product.originalPrice) * 100)}%
+                                </span>
+                            ` : ''}
+                            <img 
+                                src="${product.image}" 
+                                alt="${product.name}" 
+                                class="w-full h-48 object-cover rounded-lg mb-4 cursor-pointer"
+                                loading="lazy"
+                                onclick="showProductModal('${product.id}', ${isOffer})"
+                            />
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" 
+                            onclick="showProductModal('${product.id}', ${isOffer})">
+                            ${product.name}
+                        </h3>
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">${product.description}</p>
+                        <p class="text-xl font-bold text-green-600 dark:text-green-400 mb-2">
+                            ${price} جنيه${product.unit ? `/${product.unit}` : ''}
+                        </p>
+                        ${isOffer ? `
+                            <p class="text-sm line-through text-gray-500 mb-4">
+                                ${product.originalPrice} جنيه${product.unit ? `/${product.unit}` : ''}
+                            </p>
+                        ` : ''}
+                        
+                        ${hasWeight ? `
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    اختر ${product.unit === 'كجم' ? 'الوزن' : 'الكمية'}:
+                                </label>
+                                <select 
+                                    id="weight-${product.id}"
+                                    class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                >
+                                    ${product.weights.map(weight => `
+                                        <option value="${weight}">${weight} ${product.unit}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                        ` : ''}
+
+                        <div class="flex gap-2">
+                            <button
+                                onclick="addToCart('${product.id}', ${isOffer})"
+                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300"
+                            >
+                                شراء
+                            </button>
+                            <button
+                                onclick="toggleProductFavorite('${product.id}', ${isOffer})"
+                                class="p-3 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            >
+                                <i data-lucide="${favorites.some(f => f.id === product.id) ? 'heart-fill' : 'heart'}" 
+                                   class="w-5 h-5 ${favorites.some(f => f.id === product.id) ? 'text-red-500' : 'text-gray-400'}">
+                                </i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+            lazyLoadImages();
+        }
+
+        // Product modal
+        function showProductModal(productId, isOffer) {
+            const productList = isOffer ? offers : products;
+            const product = productList.find(p => p.id === productId);
+            
+            if (!product) return;
+
+            const isFavorite = favorites.some(f => f.id === productId);
+            const hasWeight = product.weights && product.unit;
+            const price = product.price || product.pricePerKg || product.pricePerLiter;
+            
+            const modalContent = document.getElementById('productModalContent');
+            modalContent.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-6">
+                    <img 
+                        src="${product.image}" 
+                        alt="${product.name}" 
+                        class="w-full md:w-1/2 aspect-square object-cover rounded-lg"
+                    />
+                    <div class="flex-1">
+                        <div class="flex items-start justify-between mb-4">
+                            <h3 class="text-2xl font-bold">${product.name}</h3>
+                            <button
+                                onclick="toggleProductFavorite('${product.id}', ${isOffer})"
+                                class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                            >
+                                <i data-lucide="${isFavorite ? 'heart-fill' : 'heart'}" 
+                                   class="w-6 h-6 ${isFavorite ? 'text-red-500' : 'text-gray-400'}">
+                                </i>
+                            </button>
+                        </div>
+                        
+                        <p class="text-gray-600 dark:text-gray-400 mb-6">${product.description}</p>
+                        
+                        <div class="mb-6">
+                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">
+                                ${price} جنيه${product.unit ? `/${product.unit}` : ''}
+                            </p>
+                            ${isOffer ? `
+                                <p class="text-sm line-through text-gray-500">
+                                    ${product.originalPrice} جنيه${product.unit ? `/${product.unit}` : ''}
+                                </p>
+                            ` : ''}
+                        </div>
+                        
+                        ${hasWeight ? `
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    اختر ${product.unit === 'كجم' ? 'الوزن' : 'الكمية'}:
+                                </label>
+                                <select 
+                                    id="modal-weight-${product.id}"
+                                    class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                >
+                                    ${product.weights.map(weight => `
+                                        <option value="${weight}">${weight} ${product.unit}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                        ` : ''}
+                        
+                        <button
+                            onclick="addToCart('${product.id}', ${isOffer})"
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-colors duration-300 flex items-center justify-center gap-2"
+                        >
+                            <span>شراء</span>
+                            <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('productModal').classList.remove('hidden');
+            document.body.classList.add('modal-open');
+            lucide.createIcons();
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').classList.add('hidden');
+            document.body.classList.remove('modal-open');
+        }
+
+        // Favorites functionality
+        function toggleProductFavorite(productId, isOffer) {
+            const productList = isOffer ? offers : products;
+            const product = productList.find(p => p.id === productId);
+            
+            if (!product) return;
+
+            const existingIndex = favorites.findIndex(f => f.id === productId);
+            
+            if (existingIndex >= 0) {
+                favorites.splice(existingIndex, 1);
+                showToast('تم إزالة المنتج من المفضلة');
+            } else {
+                favorites.push(product);
+                showToast('تم إضافة المنتج إلى المفضلة');
+            }
+            
+            updateFavorites();
+            saveToLocalStorage();
+            displayProducts(currentCategory);
+
+            // Update heart icon in modal if open
+            const modalContent = document.getElementById('productModalContent');
+            if (modalContent.innerHTML.includes(productId)) {
+                showProductModal(productId, isOffer);
+            }
+        }
+
+        function updateFavorites() {
+            const favoritesList = document.getElementById('favoritesList');
+            const favoriteBadge = document.getElementById('favoriteBadge');
+            
+            if (!favoritesList || !favoriteBadge) return;
+
+            if (favorites.length === 0) {
+                favoritesList.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i data-lucide="heart" class="w-16 h-16 mx-auto mb-4"></i>
+                        <p class="text-lg">لا توجد منتجات مفضلة</p>
+                    </div>
+                `;
+                favoriteBadge.classList.add('hidden');
+            } else {
+                favoritesList.innerHTML = favorites.map(item => {
+                    const price = item.price || item.pricePerKg || item.pricePerLiter;
+                    const isOffer = offers.some(o => o.id === item.id);
+                    
+                    return `
+                        <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                            <div class="flex items-center gap-4 flex-1 cursor-pointer" onclick="showProductModal('${item.id}', ${isOffer})">
+                                <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded" />
+                                <div>
+                                    <h4 class="font-bold">${item.name}</h4>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">${item.description}</p>
+                                    <p class="text-green-600 dark:text-green-400 font-semibold">
+                                        ${price} جنيه${item.unit ? `/${item.unit}` : ''}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onclick="toggleProductFavorite('${item.id}', ${isOffer})"
+                                class="p-2 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-full transition-colors"
+                            >
+                                <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+                
+                favoriteBadge.textContent = favorites.length;
+                favoriteBadge.classList.remove('hidden');
+            }
+
+            lucide.createIcons();
+        }
+
+        function toggleFavorites() {
+            const modal = document.getElementById('favoritesModal');
+            if (!modal) return;
+            
+            modal.classList.toggle('hidden');
+            
+            if (!modal.classList.contains('hidden')) {
+                updateFavorites();
+            }
+        }
+
+        // Cart functionality
+        function addToCart(productId, isOffer) {
+            const productList = isOffer ? offers : products;
+            const product = productList.find(p => p.id === productId);
+            
+            if (!product) return;
+
+            let itemToAdd = { ...product };
+
+            if (product.weights && product.unit) {
+                const weightSelect = document.getElementById(`modal-weight-${productId}`) || 
+                                   document.getElementById(`weight-${productId}`);
+                const selectedWeight = parseFloat(weightSelect.value);
+                itemToAdd.weight = selectedWeight;
+                itemToAdd.price = (product.pricePerKg || product.pricePerLiter) * selectedWeight;
+            }
+
+            const existingItem = cart.find(item => 
+                item.id === productId && 
+                (!itemToAdd.weight || item.weight === itemToAdd.weight)
+            );
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ ...itemToAdd, quantity: 1 });
+            }
+            
+            updateCart();
+            saveToLocalStorage();
+            showToast('تمت إضافة المنتج إلى السلة');
+        }
+
+        function updateQuantity(productId, newQuantity, weight = 0) {
+            if (newQuantity <= 0) {
+                cart = cart.filter(item => 
+                    item.id !== productId || 
+                    (weight > 0 && item.weight !== weight)
+                );
+                showToast('تم حذف المنتج من السلة');
+            } else {
+                const item = cart.find(item => 
+                    item.id === productId && 
+                    (!weight || item.weight === weight)
+                );
+                if (item) {
+                    item.quantity = newQuantity;
+                }
+            }
+            updateCart();
+            saveToLocalStorage();
+        }
+
+        function updateCart() {
+            const cartItems = document.getElementById('cartItems');
+            const cartBadge = document.getElementById('cartBadge');
+            const cartTotal = document.getElementById('cartTotal');
+            const checkoutButton = document.querySelector('#checkoutForm button[type="submit"]');
+
+            if (!cartItems || !cartBadge || !cartTotal || !checkoutButton) return;
+
+            if (cart.length === 0) {
+                cartItems.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i data-lucide="shopping-cart" class="w-16 h-16 mx-auto mb-4"></i>
+                        <p class="text-lg">السلة فارغة</p>
+                    </div>
+                `;
+                cartBadge.classList.add('hidden');
+                checkoutButton.disabled = true;
+            } else {
+                cartItems.innerHTML = cart.map(item => `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                        <div class="flex items-center gap-4">
+                            <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded" />
+                            <div>
+                                <h4 class="font-bold">${item.name}</h4>
+                                ${item.weight ? 
+                                    `<p class="text-sm text-gray-600 dark:text-gray-400">${item.weight} ${item.unit}</p>` : 
+                                    ''
+                                }
+                                <p class="text-green-600 dark:text-green-400 font-semibold">
+                                    ${item.price} جنيه × ${item.quantity}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-600 p-1">
+                            <button
+                                onclick="updateQuantity('${item.id}', ${item.quantity - 1}, ${item.weight || 0})"
+                                class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                            >
+                                <i data-lucide="minus" class="w-4 h-4"></i>
+                            </button>
+                            <span class="w-8 text-center font-medium">${item.quantity}</span>
+                            <button
+                                onclick="updateQuantity('${item.id}', ${item.quantity + 1}, ${item.weight || 0})"
+                                class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                            >
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+                cartBadge.textContent = totalQuantity;
+                cartBadge.classList.remove('hidden');
+                checkoutButton.disabled = false;
+            }
+
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            cartTotal.textContent = total;
+
+            lucide.createIcons();
+        }
+
+        function toggleCart() {
+            const modal = document.getElementById('cartModal');
+            if (!modal) return;
+            
+            modal.classList.toggle('hidden');
+            
+            if (!modal.classList.contains('hidden')) {
+                updateCart();
+            }
+        }
+
+        // Offers slider
+        function displayOffers() {
+            const offersSlider = document.getElementById('offersSlider');
+            if (!offersSlider) return;
+
+            offersSlider.innerHTML = offers.map(offer => {
+                const hasWeight = offer.weights && offer.unit;
+                const price = offer.price || offer.pricePerKg || offer.pricePerLiter;
+                const discount = Math.round((1 - price/offer.originalPrice) * 100);
+                
+                return `
+                    <div class="flex-none w-72 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-300">
+                        <div class="relative">
+                            <span class="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                                خصم ${discount}%
+                            </span>
+                            <img 
+                                src="${offer.image}" 
+                                alt="${offer.name}" 
+                                class="w-full h-48 object-cover rounded-lg mb-4 cursor-pointer"
+                                onclick="showProductModal('${offer.id}', true)"
+                            />
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" 
+                            onclick="showProductModal('${offer.id}', true)">
+                            ${offer.name}
+                        </h3>
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">${offer.description}</p>
+                        
+                        <div class="flex items-center justify-between mb-4">
+                            <p class="text-xl font-bold text-green-600 dark:text-green-400">
+                                ${price} جنيه${offer.unit ? `/${offer.unit}` : ''}
+                            </p>
+                            <p class="text-sm line-through text-gray-500">
+                                ${offer.originalPrice} جنيه${offer.unit ? `/${offer.unit}` : ''}
+                            </p>
+                        </div>
+                        
+                        ${hasWeight ? `
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    اختر ${offer.unit === 'كجم' ? 'الوزن' : 'الكمية'}:
+                                </label>
+                                <select 
+                                    id="weight-${offer.id}"
+                                    class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                >
+                                    ${offer.weights.map(weight => `
+                                        <option value="${weight}">${weight} ${offer.unit}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                        ` : ''}
+
+                        <div class="flex gap-2">
+                            <button
+                                onclick="addToCart('${offer.id}', true)"
+                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300"
+                            >
+                                شراء
+                            </button>
+                            <button
+                                onclick="toggleProductFavorite('${offer.id}', true)"
+                                class="p-3 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            >
+                                <i data-lucide="${favorites.some(f => f.id === offer.id) ? 'heart-fill' : 'heart'}" 
+                                   class="w-5 h-5 ${favorites.some(f => f.id === offer.id) ? 'text-red-500' : 'text-gray-400'}">
+                                </i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function scrollOffers(direction) {
+            const slider = document.getElementById('offersSlider');
+            if (!slider) return;
+            
+            const scrollAmount = 300;
+            slider.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+
+        // Initialize checkout form
+        document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (cart.length === 0) {
+                showToast('السلة فارغة! يرجى إضافة منتجات قبل إرسال الطلب.', 'error');
+                return;
+            }
+            
+            const name = document.getElementById('customerName').value;
+            const phone = document.getElementById('phoneNumber').value;
+            const address = document.getElementById('address').value;
+
+            let message = `طلب جديد من ${name}\n`;
+            message += `رقم الهاتف: ${phone}\n`;
+            message += `العنوان: ${address}\n\n`;
+            message += `الطلبات:\n`;
+            message += `==================\n`;
+            
+            cart.forEach(item => {
+                message += `${item.name}\n`;
+                if (item.weight) {
+                    message += `${item.weight} ${item.unit} × ${item.quantity} = ${item.price * item.quantity} جنيه\n`;
+                } else {
+                    message += `${item.quantity} × ${item.price} جنيه = ${item.quantity * item.price} جنيه\n`;
+                }
+                message += `------------------\n`;
+            });
+
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            message += `\nإجمالي الطلب: ${total} جنيه`;
+
+            window.open(`https://wa.me/201062680541?text=${encodeURIComponent(message)}`, '_blank');
+            
+            cart = [];
+            updateCart();
+            saveToLocalStorage();
+            toggleCart();
+            showToast('تم إرسال الطلب بنجاح!');
+        });
+
+        // Initialize displays
+        loadFromLocalStorage();
+        displayOffers();
+        displayProducts();
+
+        // Close modals when clicking outside
+        window.addEventListener('click', function(e) {
+            const productModal = document.getElementById('productModal');
+            const productModalContent = document.getElementById('productModalContent');
+            
+            if (e.target === productModal && !productModalContent.contains(e.target)) {
+                closeProductModal();
+            }
+        });
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!localStorage.getItem('darkMode')) {
+                document.documentElement.classList.toggle('dark', e.matches);
+            }
+        });
+    </script>
+</body>
+</html>
